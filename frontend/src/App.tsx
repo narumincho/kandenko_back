@@ -34,7 +34,7 @@ const divideArrIntoPieces = <T extends unknown>(
   });
 };
 
-const calculateAverage = (
+const calculateMPU6886Average = (
   MPU6886: ReadonlyArray<ReadonlyArray<MPU6886Object>>
 ): {
   readonly head: ReadonlyArray<number>;
@@ -45,39 +45,39 @@ const calculateAverage = (
   const tempAvgHead: number[] = [];
   const tempAvgRight: number[] = [];
   const tempAvgLeft: number[] = [];
-  if (MPU6886) {
-    MPU6886.forEach((data) => {
-      let sumHead = 0;
-      let sumLeft = 0;
-      let sumRight = 0;
-      data.forEach((value) => {
-        sumHead +=
-          Math.abs(value.head.accX) +
-          Math.abs(value.head.accY) +
-          Math.abs(value.head.accZ) +
-          Math.abs(value.head.gyroX) +
-          Math.abs(value.head.gyroY) +
-          Math.abs(value.head.gyroZ);
-        sumLeft +=
-          Math.abs(value.left.accX) +
-          Math.abs(value.left.accY) +
-          Math.abs(value.left.accZ) +
-          Math.abs(value.left.gyroX) +
-          Math.abs(value.left.gyroY) +
-          Math.abs(value.left.gyroZ);
-        sumRight +=
-          Math.abs(value.right.accX) +
-          Math.abs(value.right.accY) +
-          Math.abs(value.right.accZ) +
-          Math.abs(value.right.gyroX) +
-          Math.abs(value.right.gyroY) +
-          Math.abs(value.right.gyroZ);
-      });
-      tempAvgHead.push(sumHead / data.length);
-      tempAvgRight.push(sumRight / data.length);
-      tempAvgLeft.push(sumLeft / data.length);
+
+  MPU6886.forEach((data) => {
+    let sumHead = 0;
+    let sumLeft = 0;
+    let sumRight = 0;
+    data.forEach((value) => {
+      sumHead +=
+        Math.abs(value.head.accX) +
+        Math.abs(value.head.accY) +
+        Math.abs(value.head.accZ) +
+        Math.abs(value.head.gyroX) +
+        Math.abs(value.head.gyroY) +
+        Math.abs(value.head.gyroZ);
+      sumLeft +=
+        Math.abs(value.left.accX) +
+        Math.abs(value.left.accY) +
+        Math.abs(value.left.accZ) +
+        Math.abs(value.left.gyroX) +
+        Math.abs(value.left.gyroY) +
+        Math.abs(value.left.gyroZ);
+      sumRight +=
+        Math.abs(value.right.accX) +
+        Math.abs(value.right.accY) +
+        Math.abs(value.right.accZ) +
+        Math.abs(value.right.gyroX) +
+        Math.abs(value.right.gyroY) +
+        Math.abs(value.right.gyroZ);
     });
-  }
+    tempAvgHead.push(sumHead / data.length);
+    tempAvgRight.push(sumRight / data.length);
+    tempAvgLeft.push(sumLeft / data.length);
+  });
+
   return {
     head: tempAvgHead,
     left: tempAvgLeft,
@@ -85,15 +85,44 @@ const calculateAverage = (
   };
 };
 
+const labels = [1, 2, 3, 4, 5];
+
+const calculateMPU6886AverageChartData = (
+  MPU6886: ReadonlyArray<ReadonlyArray<MPU6886Object>>
+): ChartData<"line", ReadonlyArray<number>, number> => {
+  const MPU6886Average = calculateMPU6886Average(MPU6886);
+  return {
+    labels,
+    datasets: [
+      {
+        label: "頭のacc・gyroの平均値",
+        data: MPU6886Average.head,
+        borderColor: "rgb(255, 99, 132)",
+        backgroundColor: "rgba(255, 99, 132, 0.5)",
+      },
+      {
+        label: "左腕のacc・gyroの平均値",
+        data: MPU6886Average.left,
+        borderColor: "rgb(2, 99, 132)",
+        backgroundColor: "rgba(2, 99, 132, 0.5)",
+      },
+      {
+        label: "右腕のacc・gyroの平均値",
+        data: MPU6886Average.right,
+        borderColor: "rgb(2, 200, 132)",
+        backgroundColor: "rgba(2, 200, 132, 0.5)",
+      },
+    ],
+  };
+};
+
 const calculateHeavyLoadPerMinute = (
   indexData: ReadonlyArray<indexData>
-):
-  | {
-      readonly headHeavyLoad: ReadonlyArray<number>;
-      readonly leftHeavyLoad: ReadonlyArray<number>;
-      readonly rightHeavyLoad: ReadonlyArray<number>;
-    }
-  | undefined => {
+): {
+  readonly headHeavyLoad: ReadonlyArray<number>;
+  readonly leftHeavyLoad: ReadonlyArray<number>;
+  readonly rightHeavyLoad: ReadonlyArray<number>;
+} => {
   const headArray: heavyLoad[] = [];
   const leftArray: heavyLoad[] = [];
   const rightArray: heavyLoad[] = [];
@@ -115,20 +144,19 @@ const calculateHeavyLoadPerMinute = (
   const headArr = [0, 0, 0, 0, 0];
   const leftArr = [0, 0, 0, 0, 0];
   const rightArr = [0, 0, 0, 0, 0];
-  if (head) {
-    head.forEach((data) => {
-      const i = Math.round(data.index / 10);
-      headArr[i - 1]++;
-    });
-    left.forEach((data) => {
-      const i = Math.round(data.index / 10);
-      leftArr[i - 1]++;
-    });
-    right.forEach((data) => {
-      const i = Math.round(data.index / 10);
-      rightArr[i - 1]++;
-    });
-  }
+
+  head.forEach((data) => {
+    const i = Math.round(data.index / 10);
+    headArr[i - 1]++;
+  });
+  left.forEach((data) => {
+    const i = Math.round(data.index / 10);
+    leftArr[i - 1]++;
+  });
+  right.forEach((data) => {
+    const i = Math.round(data.index / 10);
+    rightArr[i - 1]++;
+  });
   console.log(headArr);
   console.log(leftArr);
   console.log(rightArr);
@@ -139,16 +167,42 @@ const calculateHeavyLoadPerMinute = (
   };
 };
 
+const calculateHeavyLoadPerMinuteChartData = (
+  indexData: ReadonlyArray<indexData>
+): ChartData<"line", ReadonlyArray<number>, number> => {
+  const heavyLoadPerMinute = calculateHeavyLoadPerMinute(indexData);
+  return {
+    labels,
+    datasets: [
+      {
+        label: "分あたりの頭の高負荷運動の回数",
+        data: heavyLoadPerMinute.headHeavyLoad,
+        borderColor: "rgb(255, 99, 132)",
+        backgroundColor: "rgba(255, 99, 132, 0.5)",
+      },
+      {
+        label: "分あたりの左腕の高負荷運動の回数",
+        data: heavyLoadPerMinute.leftHeavyLoad,
+        borderColor: "rgb(2, 99, 132)",
+        backgroundColor: "rgba(2, 99, 132, 0.5)",
+      },
+      {
+        label: "分あたりの右腕の高負荷運動の回数",
+        data: heavyLoadPerMinute.rightHeavyLoad,
+        borderColor: "rgb(2, 200, 132)",
+        backgroundColor: "rgba(2, 200, 132, 0.5)",
+      },
+    ],
+  };
+};
+
 export const App = (): JSX.Element => {
-  /** 状態 */
   const [MPU6886, setMPU6886] = useState<
     ReadonlyArray<ReadonlyArray<MPU6886Object>> | undefined
   >(undefined);
-  /** 状態 */
   const [env3, setEnv3] = useState<
     ReadonlyArray<ReadonlyArray<env3>> | undefined
-  >(undefined); //平均値を出す
-  /** 状態 */
+  >(undefined);
   const [indexData, setIndexData] = useState<
     ReadonlyArray<indexData> | undefined
   >(undefined);
@@ -183,10 +237,7 @@ export const App = (): JSX.Element => {
   };
 
   useEffect((): void => {
-    if (!MPU6886) {
-      getDataFromDB();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    getDataFromDB();
   }, []);
 
   const armUpDown: number | undefined =
@@ -220,71 +271,6 @@ export const App = (): JSX.Element => {
     },
   };
 
-  const labels = [1, 2, 3, 4, 5];
-
-  const average = MPU6886 === undefined ? undefined : calculateAverage(MPU6886);
-
-  const MPU6886Data: ChartData<
-    "line",
-    ReadonlyArray<number> | undefined,
-    number
-  > = {
-    labels,
-    datasets: [
-      {
-        label: "頭のacc・gyroの平均値",
-        data: average?.head,
-        borderColor: "rgb(255, 99, 132)",
-        backgroundColor: "rgba(255, 99, 132, 0.5)",
-      },
-      {
-        label: "左腕のacc・gyroの平均値",
-        data: average?.left,
-        borderColor: "rgb(2, 99, 132)",
-        backgroundColor: "rgba(2, 99, 132, 0.5)",
-      },
-      {
-        label: "右腕のacc・gyroの平均値",
-        data: average?.right,
-        borderColor: "rgb(2, 200, 132)",
-        backgroundColor: "rgba(2, 200, 132, 0.5)",
-      },
-    ],
-  };
-
-  const heavyLoadPerMinute =
-    indexData === undefined
-      ? undefined
-      : calculateHeavyLoadPerMinute(indexData);
-
-  const heavyLoadData: ChartData<
-    "line",
-    ReadonlyArray<number> | undefined,
-    number
-  > = {
-    labels,
-    datasets: [
-      {
-        label: "分あたりの頭の高負荷運動の回数",
-        data: heavyLoadPerMinute?.headHeavyLoad,
-        borderColor: "rgb(255, 99, 132)",
-        backgroundColor: "rgba(255, 99, 132, 0.5)",
-      },
-      {
-        label: "分あたりの左腕の高負荷運動の回数",
-        data: heavyLoadPerMinute?.leftHeavyLoad,
-        borderColor: "rgb(2, 99, 132)",
-        backgroundColor: "rgba(2, 99, 132, 0.5)",
-      },
-      {
-        label: "分あたりの右腕の高負荷運動の回数",
-        data: heavyLoadPerMinute?.rightHeavyLoad,
-        borderColor: "rgb(2, 200, 132)",
-        backgroundColor: "rgba(2, 200, 132, 0.5)",
-      },
-    ],
-  };
-
   return (
     <div>
       <h1>データを可視化プロジェクト</h1>
@@ -293,8 +279,18 @@ export const App = (): JSX.Element => {
           <h2>腕の上げ下げ回数: {armUpDown}</h2>
         </>
       )}
-      {average && <Line options={options} data={MPU6886Data}></Line>}
-      {heavyLoadPerMinute && <Line options={options} data={heavyLoadData} />}
+      {MPU6886 && (
+        <Line
+          options={options}
+          data={calculateMPU6886AverageChartData(MPU6886)}
+        ></Line>
+      )}
+      {indexData && (
+        <Line
+          options={options}
+          data={calculateHeavyLoadPerMinuteChartData(indexData)}
+        />
+      )}
     </div>
   );
 };
