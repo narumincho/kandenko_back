@@ -11,6 +11,7 @@ import {
   Tooltip,
   Legend,
   ChartData,
+  ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 
@@ -31,6 +32,111 @@ const divideArrIntoPieces = <T extends unknown>(
   return Array.from({ length: Math.ceil(arr.length / n) }).map((_, index) => {
     return arr.slice(index * n, (index + 1) * n);
   });
+};
+
+const calculateAverage = (
+  MPU6886: ReadonlyArray<ReadonlyArray<MPU6886Object>>
+): {
+  readonly head: ReadonlyArray<number>;
+  readonly left: ReadonlyArray<number>;
+  readonly right: ReadonlyArray<number>;
+} => {
+  // diffの値を使うように変更する
+  const tempAvgHead: number[] = [];
+  const tempAvgRight: number[] = [];
+  const tempAvgLeft: number[] = [];
+  if (MPU6886) {
+    MPU6886.forEach((data) => {
+      let sumHead = 0;
+      let sumLeft = 0;
+      let sumRight = 0;
+      data.forEach((value) => {
+        sumHead +=
+          Math.abs(value.head.accX) +
+          Math.abs(value.head.accY) +
+          Math.abs(value.head.accZ) +
+          Math.abs(value.head.gyroX) +
+          Math.abs(value.head.gyroY) +
+          Math.abs(value.head.gyroZ);
+        sumLeft +=
+          Math.abs(value.left.accX) +
+          Math.abs(value.left.accY) +
+          Math.abs(value.left.accZ) +
+          Math.abs(value.left.gyroX) +
+          Math.abs(value.left.gyroY) +
+          Math.abs(value.left.gyroZ);
+        sumRight +=
+          Math.abs(value.right.accX) +
+          Math.abs(value.right.accY) +
+          Math.abs(value.right.accZ) +
+          Math.abs(value.right.gyroX) +
+          Math.abs(value.right.gyroY) +
+          Math.abs(value.right.gyroZ);
+      });
+      tempAvgHead.push(sumHead / data.length);
+      tempAvgRight.push(sumRight / data.length);
+      tempAvgLeft.push(sumLeft / data.length);
+    });
+  }
+  return {
+    head: tempAvgHead,
+    left: tempAvgLeft,
+    right: tempAvgRight,
+  };
+};
+
+const calculateHeavyLoadPerMinute = (
+  indexData: ReadonlyArray<indexData>
+):
+  | {
+      readonly headHeavyLoad: ReadonlyArray<number>;
+      readonly leftHeavyLoad: ReadonlyArray<number>;
+      readonly rightHeavyLoad: ReadonlyArray<number>;
+    }
+  | undefined => {
+  const headArray: heavyLoad[] = [];
+  const leftArray: heavyLoad[] = [];
+  const rightArray: heavyLoad[] = [];
+  indexData.forEach((data: indexData, index: number) => {
+    if (data.diffHead > 100) {
+      headArray.push({ index: index, value: data.diffHead });
+    }
+    if (data.diffLeft > 100) {
+      leftArray.push({ index: index, value: data.diffLeft });
+    }
+    if (data.diffRight > 100) {
+      rightArray.push({ index: index, value: data.diffRight });
+    }
+  });
+  const head: ReadonlyArray<heavyLoad> = headArray;
+  const left: ReadonlyArray<heavyLoad> = leftArray;
+  const right: ReadonlyArray<heavyLoad> = rightArray;
+
+  const headArr = [0, 0, 0, 0, 0];
+  const leftArr = [0, 0, 0, 0, 0];
+  const rightArr = [0, 0, 0, 0, 0];
+  if (head) {
+    head.forEach((data) => {
+      const i = Math.round(data.index / 10);
+      headArr[i - 1]++;
+    });
+    left.forEach((data) => {
+      const i = Math.round(data.index / 10);
+      leftArr[i - 1]++;
+    });
+    right.forEach((data) => {
+      const i = Math.round(data.index / 10);
+      rightArr[i - 1]++;
+    });
+  }
+  console.log(headArr);
+  console.log(leftArr);
+  console.log(rightArr);
+  return {
+    headHeavyLoad: headArr,
+    leftHeavyLoad: leftArr,
+    rightHeavyLoad: rightArr,
+  };
 };
 
 export const App = (): JSX.Element => {
@@ -89,107 +195,6 @@ export const App = (): JSX.Element => {
       : indexData[indexData.length - 1]?.armUpDown;
   console.log({ armUpDown });
 
-  let head: ReadonlyArray<heavyLoad> | undefined = undefined;
-  let left: ReadonlyArray<heavyLoad> | undefined = undefined;
-  let right: ReadonlyArray<heavyLoad> | undefined = undefined;
-
-  if (indexData !== undefined) {
-    const headArray: heavyLoad[] = [];
-    const leftArray: heavyLoad[] = [];
-    const rightArray: heavyLoad[] = [];
-    indexData.forEach((data: indexData, index: number) => {
-      if (data.diffHead > 100) {
-        headArray.push({ index: index, value: data.diffHead });
-      }
-      if (data.diffLeft > 100) {
-        leftArray.push({ index: index, value: data.diffLeft });
-      }
-      if (data.diffRight > 100) {
-        rightArray.push({ index: index, value: data.diffRight });
-      }
-    });
-    head = headArray;
-    left = leftArray;
-    right = rightArray;
-  }
-
-  let avgHead: ReadonlyArray<number> | undefined = undefined;
-  let avgLeft: ReadonlyArray<number> | undefined = undefined;
-  let avgRight: ReadonlyArray<number> | undefined = undefined;
-
-  if (MPU6886 !== undefined) {
-    // diffの値を使うように変更する
-    const tempAvgHead: number[] = [];
-    const tempAvgRight: number[] = [];
-    const tempAvgLeft: number[] = [];
-    if (MPU6886) {
-      MPU6886.forEach((data) => {
-        let sumHead = 0;
-        let sumLeft = 0;
-        let sumRight = 0;
-        data.forEach((value) => {
-          sumHead +=
-            Math.abs(value.head.accX) +
-            Math.abs(value.head.accY) +
-            Math.abs(value.head.accZ) +
-            Math.abs(value.head.gyroX) +
-            Math.abs(value.head.gyroY) +
-            Math.abs(value.head.gyroZ);
-          sumLeft +=
-            Math.abs(value.left.accX) +
-            Math.abs(value.left.accY) +
-            Math.abs(value.left.accZ) +
-            Math.abs(value.left.gyroX) +
-            Math.abs(value.left.gyroY) +
-            Math.abs(value.left.gyroZ);
-          sumRight +=
-            Math.abs(value.right.accX) +
-            Math.abs(value.right.accY) +
-            Math.abs(value.right.accZ) +
-            Math.abs(value.right.gyroX) +
-            Math.abs(value.right.gyroY) +
-            Math.abs(value.right.gyroZ);
-        });
-        tempAvgHead.push(sumHead / data.length);
-        tempAvgRight.push(sumRight / data.length);
-        tempAvgLeft.push(sumLeft / data.length);
-      });
-    }
-    avgHead = tempAvgHead;
-    avgLeft = tempAvgLeft;
-    avgRight = tempAvgRight;
-  }
-
-  let headHeavyLoad: ReadonlyArray<number> | undefined = undefined;
-  let leftHeavyLoad: ReadonlyArray<number> | undefined = undefined;
-  let rightHeavyLoad: ReadonlyArray<number> | undefined = undefined;
-
-  if (head !== undefined && headHeavyLoad === undefined) {
-    const headArr = [0, 0, 0, 0, 0];
-    const leftArr = [0, 0, 0, 0, 0];
-    const rightArr = [0, 0, 0, 0, 0];
-    if (head) {
-      head.forEach((data) => {
-        const i = Math.round(data.index / 10);
-        headArr[i - 1]++;
-      });
-      left!.forEach((data) => {
-        const i = Math.round(data.index / 10);
-        leftArr[i - 1]++;
-      });
-      right!.forEach((data) => {
-        const i = Math.round(data.index / 10);
-        rightArr[i - 1]++;
-      });
-    }
-    console.log(headArr);
-    console.log(leftArr);
-    console.log(rightArr);
-    headHeavyLoad = headArr;
-    leftHeavyLoad = leftArr;
-    rightHeavyLoad = rightArr;
-  }
-
   // データ可視化のデータオプション等
 
   ChartJS.register(
@@ -202,11 +207,11 @@ export const App = (): JSX.Element => {
     Legend
   );
 
-  const options = {
+  const options: ChartOptions<"line"> = {
     responsive: true,
     plugins: {
       legend: {
-        position: "top" as const,
+        position: "top",
       },
       title: {
         display: true,
@@ -217,52 +222,63 @@ export const App = (): JSX.Element => {
 
   const labels = [1, 2, 3, 4, 5];
 
-  const MPU6886Data = {
+  const average = MPU6886 === undefined ? undefined : calculateAverage(MPU6886);
+
+  const MPU6886Data: ChartData<
+    "line",
+    ReadonlyArray<number> | undefined,
+    number
+  > = {
     labels,
     datasets: [
       {
         label: "頭のacc・gyroの平均値",
-        data: avgHead,
+        data: average?.head,
         borderColor: "rgb(255, 99, 132)",
         backgroundColor: "rgba(255, 99, 132, 0.5)",
       },
       {
         label: "左腕のacc・gyroの平均値",
-        data: avgLeft,
+        data: average?.left,
         borderColor: "rgb(2, 99, 132)",
         backgroundColor: "rgba(2, 99, 132, 0.5)",
       },
       {
         label: "右腕のacc・gyroの平均値",
-        data: avgRight,
+        data: average?.right,
         borderColor: "rgb(2, 200, 132)",
         backgroundColor: "rgba(2, 200, 132, 0.5)",
       },
     ],
   };
 
+  const heavyLoadPerMinute =
+    indexData === undefined
+      ? undefined
+      : calculateHeavyLoadPerMinute(indexData);
+
   const heavyLoadData: ChartData<
     "line",
-    readonly number[] | undefined,
+    ReadonlyArray<number> | undefined,
     number
   > = {
     labels,
     datasets: [
       {
         label: "分あたりの頭の高負荷運動の回数",
-        data: headHeavyLoad,
+        data: heavyLoadPerMinute?.headHeavyLoad,
         borderColor: "rgb(255, 99, 132)",
         backgroundColor: "rgba(255, 99, 132, 0.5)",
       },
       {
         label: "分あたりの左腕の高負荷運動の回数",
-        data: leftHeavyLoad,
+        data: heavyLoadPerMinute?.leftHeavyLoad,
         borderColor: "rgb(2, 99, 132)",
         backgroundColor: "rgba(2, 99, 132, 0.5)",
       },
       {
         label: "分あたりの右腕の高負荷運動の回数",
-        data: rightHeavyLoad,
+        data: heavyLoadPerMinute?.rightHeavyLoad,
         borderColor: "rgb(2, 200, 132)",
         backgroundColor: "rgba(2, 200, 132, 0.5)",
       },
@@ -277,8 +293,8 @@ export const App = (): JSX.Element => {
           <h2>腕の上げ下げ回数: {armUpDown}</h2>
         </>
       )}
-      {avgHead && <Line options={options} data={MPU6886Data}></Line>}
-      {headHeavyLoad && <Line options={options} data={heavyLoadData} />}
+      {average && <Line options={options} data={MPU6886Data}></Line>}
+      {heavyLoadPerMinute && <Line options={options} data={heavyLoadData} />}
     </div>
   );
 };
