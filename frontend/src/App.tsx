@@ -13,58 +13,89 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 
-function divideArrIntoPieces(arr: Array<any>, n: number) {
+function divideArrIntoPieces<T>(
+  arr: ReadonlyArray<T>,
+  n: number
+): ReadonlyArray<ReadonlyArray<T>> {
   let arrList = [];
   let idx = 0;
   while (idx < arr.length) {
-    arrList.push(arr.splice(idx, idx + n));
+    arrList.push([...arr].splice(idx, idx + n));
   }
   return arrList;
 }
 
 const App = () => {
-  const [MPU6886, setMPU6886] = useState<MPU6886Object[][] | null>(null);
-  const [env3, setEnv3] = useState<null | env3[][]>(null); //平均値を出す
-  const [indexData, setIndexData] = useState<null | indexData[]>(null);
-  const [armUpDown, setArmUpDown] = useState<number | null>(null);
-  const [head, setHead] = useState<heavyLoad[] | null>(null); //平均値を出す
-  const [left, setLeft] = useState<heavyLoad[] | null>(null); //平均値を出す
-  const [right, setRight] = useState<heavyLoad[] | null>(null); //平均値を出す
+  const [MPU6886, setMPU6886] = useState<
+    ReadonlyArray<ReadonlyArray<MPU6886Object>> | undefined
+  >(undefined);
+  const [env3, setEnv3] = useState<
+    ReadonlyArray<ReadonlyArray<env3>> | undefined
+  >(undefined); //平均値を出す
+  const [indexData, setIndexData] = useState<
+    ReadonlyArray<indexData> | undefined
+  >(undefined);
+  const [armUpDown, setArmUpDown] = useState<number | undefined>(undefined);
+  const [head, setHead] = useState<ReadonlyArray<heavyLoad> | undefined>(
+    undefined
+  ); //平均値を出す
+  const [left, setLeft] = useState<ReadonlyArray<heavyLoad> | undefined>(
+    undefined
+  ); //平均値を出す
+  const [right, setRight] = useState<ReadonlyArray<heavyLoad> | undefined>(
+    undefined
+  ); //平均値を出す
 
   //平均値たち
-  const [avgHead, setAvgHead] = useState<number[] | null>(null);
-  const [avgLeft, setAvgLeft] = useState<number[] | null>(null);
-  const [avgRight, setAvgRight] = useState<number[] | null>(null);
-  const [headHeavyLoad, setHeadHeavyLoad] = useState<number[] | null>(null);
-  const [leftHeavyLoad, setLeftHeavyLoad] = useState<number[] | null>(null);
-  const [rightHeavyLoad, setRightHeavyLoad] = useState<number[] | null>(null);
+  const [avgHead, setAvgHead] = useState<ReadonlyArray<number> | undefined>(
+    undefined
+  );
+  const [avgLeft, setAvgLeft] = useState<ReadonlyArray<number> | undefined>(
+    undefined
+  );
+  const [avgRight, setAvgRight] = useState<ReadonlyArray<number> | undefined>(
+    undefined
+  );
+  const [headHeavyLoad, setHeadHeavyLoad] = useState<
+    ReadonlyArray<number> | undefined
+  >(undefined);
+  const [leftHeavyLoad, setLeftHeavyLoad] = useState<
+    ReadonlyArray<number> | undefined
+  >(undefined);
+  const [rightHeavyLoad, setRightHeavyLoad] = useState<
+    ReadonlyArray<number> | undefined
+  >(undefined);
 
-  const getDataFromDB = async () => {
+  const getDataFromDB = async (): Promise<void> => {
     await axios
-      .get("http://localhost:3030/api/edge_data/MPU6886")
+      .get<ReadonlyArray<MPU6886Object>>(
+        "http://localhost:3030/api/edge_data/MPU6886"
+      )
       .then((response) => {
         console.log(response.data);
         const splitedData = divideArrIntoPieces(response.data, 60);
         console.log(splitedData);
-        const mpu6886Array = setMPU6886(splitedData as MPU6886Object[][]);
+        const mpu6886Array = setMPU6886(splitedData);
       });
     await axios
-      .get("http://localhost:3030/api/edge_data/ENV3")
+      .get<ReadonlyArray<env3>>("http://localhost:3030/api/edge_data/ENV3")
       .then((response) => {
         console.log(response.data);
         const splitedData = divideArrIntoPieces(response.data, 60);
         console.log(splitedData);
-        setEnv3(splitedData as env3[][]);
+        setEnv3(splitedData);
       });
     await axios
-      .get("http://localhost:3030/api/edge_data/indexData")
+      .get<ReadonlyArray<indexData>>(
+        "http://localhost:3030/api/edge_data/indexData"
+      )
       .then((response) => {
         console.log(response.data);
-        setIndexData(response.data as indexData[]);
+        setIndexData(response.data);
       });
   };
 
-  const formatArmUpDown = () => {
+  const formatArmUpDown = (): void => {
     setArmUpDown(indexData![indexData!.length - 1].armUpDown);
     console.log(armUpDown);
   };
@@ -89,7 +120,7 @@ const App = () => {
     setRight(rightArray);
   };
 
-  const caliculateAvg = () => {
+  const calculateAvg = (): void => {
     // diffの値を使うように変更する
     const tempAvgHead: number[] = [];
     const tempAvgRight: number[] = [];
@@ -174,7 +205,7 @@ const App = () => {
       getHeavyLoad();
     }
     if (MPU6886 !== null && avgHead === null) {
-      caliculateAvg();
+      calculateAvg();
     }
     if (head !== null && headHeavyLoad === null) {
       heavyLoadPerMinute();
