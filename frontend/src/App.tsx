@@ -10,64 +10,45 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartData,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 
-function divideArrIntoPieces<T>(
+/**
+ * 配列を指定した単位で分割する
+ * @param arr 分割する配列
+ * @param n 分割する単位
+ * @returns 分割された配列
+ * @example
+ * ```ts
+ * divideArrIntoPieces([0, 1, 2, 3, 4, 5, 6, 7], 3) // [[0, 1, 2], [3, 4, 5], [6, 7]]
+ * ```
+ */
+const divideArrIntoPieces = <T extends unknown>(
   arr: ReadonlyArray<T>,
   n: number
-): ReadonlyArray<ReadonlyArray<T>> {
-  let arrList = [];
-  let idx = 0;
-  while (idx < arr.length) {
-    arrList.push([...arr].splice(idx, idx + n));
-  }
-  return arrList;
-}
+): ReadonlyArray<ReadonlyArray<T>> => {
+  return Array.from({ length: Math.ceil(arr.length / n) }).map((_, index) => {
+    return arr.slice(index * n, (index + 1) * n);
+  });
+};
 
-const App = () => {
+export const App = (): JSX.Element => {
+  /** 状態 */
   const [MPU6886, setMPU6886] = useState<
     ReadonlyArray<ReadonlyArray<MPU6886Object>> | undefined
   >(undefined);
+  /** 状態 */
   const [env3, setEnv3] = useState<
     ReadonlyArray<ReadonlyArray<env3>> | undefined
   >(undefined); //平均値を出す
+  /** 状態 */
   const [indexData, setIndexData] = useState<
     ReadonlyArray<indexData> | undefined
   >(undefined);
-  const [armUpDown, setArmUpDown] = useState<number | undefined>(undefined);
-  const [head, setHead] = useState<ReadonlyArray<heavyLoad> | undefined>(
-    undefined
-  ); //平均値を出す
-  const [left, setLeft] = useState<ReadonlyArray<heavyLoad> | undefined>(
-    undefined
-  ); //平均値を出す
-  const [right, setRight] = useState<ReadonlyArray<heavyLoad> | undefined>(
-    undefined
-  ); //平均値を出す
 
-  //平均値たち
-  const [avgHead, setAvgHead] = useState<ReadonlyArray<number> | undefined>(
-    undefined
-  );
-  const [avgLeft, setAvgLeft] = useState<ReadonlyArray<number> | undefined>(
-    undefined
-  );
-  const [avgRight, setAvgRight] = useState<ReadonlyArray<number> | undefined>(
-    undefined
-  );
-  const [headHeavyLoad, setHeadHeavyLoad] = useState<
-    ReadonlyArray<number> | undefined
-  >(undefined);
-  const [leftHeavyLoad, setLeftHeavyLoad] = useState<
-    ReadonlyArray<number> | undefined
-  >(undefined);
-  const [rightHeavyLoad, setRightHeavyLoad] = useState<
-    ReadonlyArray<number> | undefined
-  >(undefined);
-
-  const getDataFromDB = async (): Promise<void> => {
-    await axios
+  const getDataFromDB = (): void => {
+    axios
       .get<ReadonlyArray<MPU6886Object>>(
         "http://localhost:3030/api/edge_data/MPU6886"
       )
@@ -75,9 +56,9 @@ const App = () => {
         console.log(response.data);
         const splitedData = divideArrIntoPieces(response.data, 60);
         console.log(splitedData);
-        const mpu6886Array = setMPU6886(splitedData);
+        setMPU6886(splitedData);
       });
-    await axios
+    axios
       .get<ReadonlyArray<env3>>("http://localhost:3030/api/edge_data/ENV3")
       .then((response) => {
         console.log(response.data);
@@ -85,7 +66,7 @@ const App = () => {
         console.log(splitedData);
         setEnv3(splitedData);
       });
-    await axios
+    axios
       .get<ReadonlyArray<indexData>>(
         "http://localhost:3030/api/edge_data/indexData"
       )
@@ -95,16 +76,28 @@ const App = () => {
       });
   };
 
-  const formatArmUpDown = (): void => {
-    setArmUpDown(indexData![indexData!.length - 1].armUpDown);
-    console.log(armUpDown);
-  };
+  useEffect((): void => {
+    if (!MPU6886) {
+      getDataFromDB();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const getHeavyLoad = () => {
-    let headArray: heavyLoad[] = [];
-    let leftArray: heavyLoad[] = [];
-    let rightArray: heavyLoad[] = [];
-    indexData!.forEach((data: indexData, index: number) => {
+  const armUpDown: number | undefined =
+    indexData === undefined
+      ? undefined
+      : indexData[indexData.length - 1]?.armUpDown;
+  console.log({ armUpDown });
+
+  let head: ReadonlyArray<heavyLoad> | undefined = undefined;
+  let left: ReadonlyArray<heavyLoad> | undefined = undefined;
+  let right: ReadonlyArray<heavyLoad> | undefined = undefined;
+
+  if (indexData !== undefined) {
+    const headArray: heavyLoad[] = [];
+    const leftArray: heavyLoad[] = [];
+    const rightArray: heavyLoad[] = [];
+    indexData.forEach((data: indexData, index: number) => {
       if (data.diffHead > 100) {
         headArray.push({ index: index, value: data.diffHead });
       }
@@ -115,12 +108,16 @@ const App = () => {
         rightArray.push({ index: index, value: data.diffRight });
       }
     });
-    setHead(headArray);
-    setLeft(leftArray);
-    setRight(rightArray);
-  };
+    head = headArray;
+    left = leftArray;
+    right = rightArray;
+  }
 
-  const calculateAvg = (): void => {
+  let avgHead: ReadonlyArray<number> | undefined = undefined;
+  let avgLeft: ReadonlyArray<number> | undefined = undefined;
+  let avgRight: ReadonlyArray<number> | undefined = undefined;
+
+  if (MPU6886 !== undefined) {
     // diffの値を使うように変更する
     const tempAvgHead: number[] = [];
     const tempAvgRight: number[] = [];
@@ -158,12 +155,16 @@ const App = () => {
         tempAvgLeft.push(sumLeft / data.length);
       });
     }
-    setAvgHead(tempAvgHead);
-    setAvgLeft(tempAvgLeft);
-    setAvgRight(tempAvgRight);
-  };
+    avgHead = tempAvgHead;
+    avgLeft = tempAvgLeft;
+    avgRight = tempAvgRight;
+  }
 
-  const heavyLoadPerMinute = () => {
+  let headHeavyLoad: ReadonlyArray<number> | undefined = undefined;
+  let leftHeavyLoad: ReadonlyArray<number> | undefined = undefined;
+  let rightHeavyLoad: ReadonlyArray<number> | undefined = undefined;
+
+  if (head !== undefined && headHeavyLoad === undefined) {
     const headArr = [0, 0, 0, 0, 0];
     const leftArr = [0, 0, 0, 0, 0];
     const rightArr = [0, 0, 0, 0, 0];
@@ -184,33 +185,10 @@ const App = () => {
     console.log(headArr);
     console.log(leftArr);
     console.log(rightArr);
-    setHeadHeavyLoad(headArr);
-    setLeftHeavyLoad(leftArr);
-    setRightHeavyLoad(rightArr);
-  };
-
-  useEffect(() => {
-    if (!MPU6886) {
-      (async () => {
-        await getDataFromDB();
-      })();
-    }
-  });
-
-  useEffect(() => {
-    if (indexData !== null && armUpDown === null) {
-      formatArmUpDown();
-    }
-    if (indexData !== null && head === null) {
-      getHeavyLoad();
-    }
-    if (MPU6886 !== null && avgHead === null) {
-      calculateAvg();
-    }
-    if (head !== null && headHeavyLoad === null) {
-      heavyLoadPerMinute();
-    }
-  });
+    headHeavyLoad = headArr;
+    leftHeavyLoad = leftArr;
+    rightHeavyLoad = rightArr;
+  }
 
   // データ可視化のデータオプション等
 
@@ -263,7 +241,11 @@ const App = () => {
     ],
   };
 
-  const heavyLoadData = {
+  const heavyLoadData: ChartData<
+    "line",
+    readonly number[] | undefined,
+    number
+  > = {
     labels,
     datasets: [
       {
@@ -300,5 +282,3 @@ const App = () => {
     </div>
   );
 };
-
-export default App;
